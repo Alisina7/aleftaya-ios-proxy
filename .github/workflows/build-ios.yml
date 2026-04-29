@@ -1,4 +1,4 @@
-name: Build Aleftaya IPA
+name: Build AlefTaya IPA
 on:
   workflow_dispatch:
 
@@ -9,10 +9,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install ldid (For TrollStore Entitlements)
+        run: brew install ldid
+
       - name: Build Xcode Project
         run: |
           mkdir -p build
-          # از آنجا که ساختار ما الان کاملاً تخت و استاندارد است، سرور به راحتی فایل را می‌بیند
           xcodebuild -project GoogleFrontProxy.xcodeproj \
             -scheme GoogleFrontProxy \
             -configuration Release \
@@ -22,12 +24,17 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             IPHONEOS_DEPLOYMENT_TARGET=15.0
 
-      - name: Create IPA
+      - name: Inject Entitlements & Create IPA
         run: |
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/GoogleFrontProxy.app Payload/
-          # این خط جادویی مشکل Code 1 را برای همیشه حل می‌کند
+          
+          # ۱. دادن اجازه اجرای مستقیم به فایل راست
           chmod +x Payload/GoogleFrontProxy.app/MasterHttpRelay-iOS
+          
+          # ۲. تزریق اجباری تنظیمات TrollStore برای دور زدن محدودیت Spawn
+          ldid -SEntitlements.plist Payload/GoogleFrontProxy.app/GoogleFrontProxy
+          
           zip -r aleftaya_proxy.ipa Payload
           
       - name: Upload IPA
