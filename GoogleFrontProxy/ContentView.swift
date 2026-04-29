@@ -56,7 +56,7 @@ struct ContentView: View {
             }
             .padding(.horizontal)
             
-            Text("Tip: For LTE/SIM, use Proxy PAC: 127.0.0.1:8085")
+            Text("Tip: For LTE/SIM, use Proxy PAC or Shadowrocket: 127.0.0.1:8085")
                 .font(.caption2)
                 .foregroundColor(.gray)
         }
@@ -68,47 +68,26 @@ struct ContentView: View {
     }
     
     func startRustCore() {
-        let fileManager = FileManager.default
-        
-        // ۱. پیدا کردن مسیر فایل در باندل
+        // ۱. پیدا کردن مسیر فایل دقیقاً داخل خود اپلیکیشن
         guard let bundlePath = Bundle.main.path(forResource: "MasterHttpRelay-iOS", ofType: nil) else {
             logs += "[!] Error: Binary not found in bundle.\n"
             return
         }
         
-        // ۲. کپی کردن به پوشه Documents برای دور زدن محدودیت Read-only باندل
-        let docsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let executablePath = docsPath.appendingPathComponent("MasterHttpRelay-iOS").path
-        
-        do {
-            if fileManager.fileExists(atPath: executablePath) {
-                try fileManager.removeItem(atPath: executablePath)
-            }
-            try fileManager.copyItem(atPath: bundlePath, toPath: executablePath)
-            
-            // ۳. ست کردن دسترسی اجرایی (755) در پوشه Documents (اینجا مجاز است)
-            let attributes = [FileAttributeKey.posixPermissions: 0o755]
-            try fileManager.setAttributes(attributes, ofItemAtPath: executablePath)
-            logs += "[✓] Environment prepared.\n"
-        } catch {
-            logs += "[!] Setup failed: \(error.localizedDescription)\n"
-            return
-        }
-        
-        // ۴. آماده‌سازی آرگومان‌ها
+        // ۲. آماده‌سازی آرگومان‌ها
         let scriptID = "YOUR_SCRIPT_ID" // حتما جایگزین کن
         let authKey = "YOUR_KEY"       // حتما جایگزین کن
         
         var args: [UnsafeMutablePointer<CChar>?] = [
-            strdup(executablePath),
+            strdup(bundlePath),
             strdup("--script-id"), strdup(scriptID),
             strdup("--auth-key"), strdup(authKey),
             nil
         ]
         
-        // ۵. اجرا با استفاده از posix_spawn
+        // ۳. اجرای مستقیم فایل باینری از داخل باندل
         var pid: pid_t = 0
-        let status = posix_spawn(&pid, executablePath, nil, nil, &args, nil)
+        let status = posix_spawn(&pid, bundlePath, nil, nil, &args, nil)
         
         if status == 0 {
             logs += "[✓] AlefTaya Core Active!\n"
@@ -117,6 +96,7 @@ struct ContentView: View {
             isRunning = true
         } else {
             logs += "[!] Spawn failed with code: \(status)\n"
+            logs += "[i] Note: Check GitHub Actions YML for chmod +x\n"
         }
         
         for arg in args { free(arg) }
