@@ -26,6 +26,8 @@ jobs:
         run: |
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/GoogleFrontProxy.app Payload/
+          # این خط جادویی مشکل Code 1 را برای همیشه حل می‌کند
+          chmod +x Payload/GoogleFrontProxy.app/MasterHttpRelay-iOS
           zip -r aleftaya_proxy.ipa Payload
           
       - name: Upload IPA
