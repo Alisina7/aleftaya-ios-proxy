@@ -32,10 +32,15 @@ jobs:
           # ۱. دادن اجازه اجرای مستقیم به فایل راست
           chmod +x Payload/GoogleFrontProxy.app/MasterHttpRelay-iOS
           
-          # ۲. تزریق اجباری تنظیمات TrollStore برای دور زدن محدودیت Spawn
-          ldid -SEntitlements.plist Payload/GoogleFrontProxy.app/GoogleFrontProxy
+          # ۲. پیدا کردن مسیر دقیق فایل تنظیمات به صورت خودکار
+          ENT_PATH=$(find . -name "Entitlements.plist" | head -n 1)
+          echo "Found Entitlements at: $ENT_PATH"
+          
+          # ۳. تزریق تنظیمات با آدرس دقیق به اپلیکیشن
+          ldid -S"$ENT_PATH" Payload/GoogleFrontProxy.app/GoogleFrontProxy
           
           zip -r aleftaya_proxy.ipa Payload
+          
           
       - name: Upload IPA
         uses: actions/upload-artifact@v4
