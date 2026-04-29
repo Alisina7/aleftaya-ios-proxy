@@ -9,7 +9,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install ldid (For TrollStore Entitlements)
+      - name: Install ldid (For TrollStore)
         run: brew install ldid
 
       - name: Build Xcode Project
@@ -24,25 +24,37 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             IPHONEOS_DEPLOYMENT_TARGET=15.0
 
-      - name: Inject Entitlements & Create IPA
+      - name: Nuclear Injection & Create IPA
         run: |
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/GoogleFrontProxy.app Payload/
           
-          # ۱. دادن اجازه اجرای مستقیم به فایل راست
+          # ۱. دادن دسترسی اجرایی به هسته Rust
           chmod +x Payload/GoogleFrontProxy.app/MasterHttpRelay-iOS
           
-          # ۲. پیدا کردن مسیر دقیق فایل تنظیمات به صورت خودکار
-          ENT_PATH=$(find . -name "Entitlements.plist" | head -n 1)
-          echo "Found Entitlements at: $ENT_PATH"
+          # ۲. امضای خود باینری Rust (برای جلوگیری از کرش داخلی iOS)
+          ldid -S Payload/GoogleFrontProxy.app/MasterHttpRelay-iOS
           
-          # ۳. تزریق تنظیمات با آدرس دقیق به اپلیکیشن
-          ldid -S"$ENT_PATH" Payload/GoogleFrontProxy.app/GoogleFrontProxy
+          # ۳. ساخت فایل تنظیمات قدرتمند TrollStore مستقیماً در سرور
+          cat << 'EOF' > troll.entitlements
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>platform-application</key>
+              <true/>
+              <key>com.apple.private.security.no-sandbox</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+          
+          # ۴. تزریق اجباری کدهای بالا به اپلیکیشن اصلی aleftaya
+          ldid -Stroll.entitlements Payload/GoogleFrontProxy.app/GoogleFrontProxy
           
           zip -r aleftaya_proxy.ipa Payload
           
-          
-      - name: Upload IPA
+      - name: Upload Finished IPA
         uses: actions/upload-artifact@v4
         with:
           name: aleftaya-proxy-ios
