@@ -1,0 +1,35 @@
+name: Build Aleftaya IPA
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Xcode Project
+        run: |
+          mkdir -p build
+          # از آنجا که ساختار ما الان کاملاً تخت و استاندارد است، سرور به راحتی فایل را می‌بیند
+          xcodebuild -project GoogleFrontProxy.xcodeproj \
+            -scheme GoogleFrontProxy \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0
+
+      - name: Create IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/GoogleFrontProxy.app Payload/
+          zip -r aleftaya_proxy.ipa Payload
+          
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: aleftaya-proxy-ios
+          path: aleftaya_proxy.ipa
